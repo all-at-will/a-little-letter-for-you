@@ -88,16 +88,64 @@ const replies = {
   yes: "谢谢你愿意让我探班你的人生。我会认真珍惜这份答案，也认真珍惜你。",
 };
 
+const formEndpoint = "https://formspree.io/f/meaorpww";
+let lastSubmissionAt = 0;
+
+const getDeviceType = () => {
+  const agent = navigator.userAgent;
+  if (/iPad|Tablet/i.test(agent)) return "平板";
+  if (/Android|iPhone|iPod|Mobile/i.test(agent)) return "手机";
+  return "电脑";
+};
+
+const submitChoice = async (choice) => {
+  const now = Date.now();
+  if (now - lastSubmissionAt < 900) return;
+  lastSubmissionAt = now;
+
+  const submittedAt = new Intl.DateTimeFormat("zh-CN", {
+    timeZone: "Asia/Shanghai",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hour12: false,
+  }).format(new Date());
+
+  const payload = new FormData();
+  payload.append("选择结果", choice);
+  payload.append("提交时间", submittedAt);
+  payload.append("设备类型", getDeviceType());
+  payload.append("页面版本", "GitHub Pages · 2026-09-27");
+  payload.append("页面地址", window.location.href);
+  payload.append("subject", `表白网站收到新选择：${choice}`);
+
+  try {
+    const response = await fetch(formEndpoint, {
+      method: "POST",
+      body: payload,
+      headers: { Accept: "application/json" },
+    });
+    if (!response.ok) throw new Error(`Formspree returned ${response.status}`);
+  } catch (error) {
+    console.warn("选择结果暂时未能发送。", error);
+  }
+};
+
 const inertChoice = document.querySelector("[data-inert-choice]");
 inertChoice?.addEventListener("pointerdown", () => {
   navigator.vibrate?.(24);
 });
 inertChoice?.addEventListener("click", () => {
+  void submitChoice("让我想一想");
   inertChoice.blur();
 });
 
 document.querySelectorAll("[data-response]").forEach((button) => {
   button.addEventListener("click", () => {
+    if (button.dataset.response === "yes") void submitChoice("我愿意");
     if (replyMessage) replyMessage.textContent = replies[button.dataset.response] ?? "谢谢你看完这份日志。";
     if (responseGroup) responseGroup.hidden = true;
     if (reply) reply.hidden = false;
